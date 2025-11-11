@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scroll Gallery — Clickable Cards</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --surface: #12141a;
+      --text: #e8eaf0;
+      --muted: #9aa3b2;
+      --accent: #7c5cff;
+      --accent-2: #24d1ff;
+      --ring: #2a2f3a;
+    }
+
+    /* Page basics */
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 800px at 80% -10%, #182032 0%, var(--bg) 55%) fixed;
+      color: var(--text);
+      font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      letter-spacing: 0.2px;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+    /* Fancy header */
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(180deg, rgba(11,12,16,0.9), rgba(11,12,16,0.35), rgba(11,12,16,0));
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--ring);
+    }
+
+    .hero {
+      padding: 22px 24px 14px;
+      display: grid; gap: 6px;
+    }
+    .title {
+      font-size: clamp(24px, 3.2vw + 10px, 44px);
+      font-weight: 800; line-height: 1.1; margin: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      letter-spacing: 0.3px;
+      filter: drop-shadow(0 2px 20px rgba(124,92,255,0.15));
+    }
+    .subtitle { margin: 0; color: var(--muted); font-size: 0.98rem; }
+
+    /* Jump menu (auto-generated) */
+    .toc {
+      display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;
+      overflow-x: auto; padding: 8px 24px 14px; scrollbar-width: thin;
+    }
+    .toc a {
+      flex: 0 0 auto;
+      text-decoration: none; color: var(--text);
+      background: linear-gradient(180deg, #161922, #0f1218);
+      border: 1px solid var(--ring);
+      padding: 6px 10px; border-radius: 999px; font-size: 0.9rem;
+      transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .toc a:hover { transform: translateY(-1px); border-color: #2e3750; box-shadow: 0 6px 22px rgba(0,0,0,0.25); }
+
+    /* Gallery layout (single-column, scroll-snap) */
+    .gallery-wrapper { scroll-snap-type: y mandatory; }
+    .gallery { display: grid; grid-template-columns: 1fr; gap: 28px; }
+
+    /* Card */
+    .card {
+      scroll-snap-align: start;
+      background: linear-gradient(180deg, #12141a, #0f1217);
+      border: 1px solid var(--ring);
+      border-radius: 18px; overflow: clip; position: relative;
+      box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+      transform: translateY(14px) scale(0.985);
+      opacity: 0; /* will animate in */
+      transition: transform .6s cubic-bezier(.2,.75,.2,1), opacity .6s ease;
+    }
+    .card.in-view { transform: translateY(0) scale(1); opacity: 1; }
+
+    .card a.thumb { display: block; position: relative; isolation: isolate; }
+    .card img {
+      display: block; width: 100%; height: auto; aspect-ratio: 16/9; object-fit: cover; background: #0b0e14;
+      transition: transform .6s cubic-bezier(.2,.75,.2,1), filter .35s ease;
+    }
+    .card:hover img { transform: scale(1.03); filter: saturate(1.05) brightness(1.03); }
+
+    /* Overlay CTA */
+    .overlay {
+      position: absolute; inset: 0; display: grid; place-items: end;
+      background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45));
+      opacity: 0; transition: opacity .35s ease; padding: 14px;
+    }
+    .card:hover .overlay { opacity: 1; }
+    .chip {
+      justify-self: start;
+      background: linear-gradient(90deg, rgba(124,92,255,.22), rgba(36,209,255,.22));
+      border: 1px solid rgba(124,92,255,.45);
+      color: #eae6ff; font-weight: 600; padding: 8px 12px; border-radius: 999px; font-size: .88rem;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.45);
+    }
+
+    /* Meta */
+    .meta { padding: 16px 16px 18px; display: grid; gap: 6px; }
+    .meta h3 { margin: 0; font-size: 1.15rem; letter-spacing: 0.2px; }
+    .meta p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+    /* Back to top */
+    .to-top {
+      position: fixed; bottom: 18px; right: 18px; z-index: 20;
+      border: 1px solid var(--ring); background: #12141a; color: var(--text);
+      padding: 10px 12px; border-radius: 12px; cursor: pointer; font-weight: 600;
+      box-shadow: 0 12px 36px rgba(0,0,0,.45); opacity: .85; transition: opacity .2s ease, transform .2s ease;
+    }
+    .to-top:hover { opacity: 1; transform: translateY(-1px); }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .card, .card img { transition: none !important; }
+      .toc a { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header id="top">
+    <div class="hero container">
+      <h1 class="title">Who is Peter with a B</h1>
+      <p class="subtitle">All images are clickable links • Explore the life of Beter Saad</p>
+    </div>
+    <!-- Jump menu (auto-populated from each card's title) -->
+    <nav class="toc" aria-label="Jump to image"></nav>
+  </header>
+
+  <main class="container gallery-wrapper">
+    <section class="gallery" id="gallery">
+
+      <article class="card" id="image-1" data-title="View His Linkedin">
+        <a class="thumb" href="https://www.linkedin.com/in/beter-saad-a42185241/" target="_blank" rel="noopener" aria-label="One">
+          <img src="BETERLINK.jpg" alt="Beter Saad Can be found on linkedin" loading="lazy" />
+          <div class="overlay"><span class="chip">Open link ↗</span></div>
+        </a>
+        <div class="meta">
+          
+          <p>Beter Saad Can be found on linkdein.</p>
+        </div>
+      </article>
+
+      <article class="card" id="image-2" data-title="PETESAAD04">
+        <a class="thumb" href="https://www.instagram.com/petesaad4?igsh=bDV1emh0cGptN2Z0" target="_blank" rel="noopener" aria-label="Open link for City Nightscape">
+          <img src="FUCKBETER.jpg" alt="City Nightscape" loading="lazy" />
+          <div class="overlay"><span class="chip">Open link ↗</span></div>
+        </a>
+        <div class="meta">
+          <p>Peter Can Also be found on Instagram.</p>
+        </div>
+      </article>
+
+      <article class="card" id="image-3" data-title="The Valorant God">
+        <a class="thumb" href="https://tracker.gg/valorant/profile/riot/fallenangle348%23lea/overview?platform=pc&playlist=competitive&season=4c4b8cff-43eb-13d3-8f14-96b783c90cd2" rel="noopener" aria-label="Open link for Mountain Range">
+          <img src="beter.jpg" alt="The Valorant God" loading="lazy" />
+          <div class="overlay"><span class="chip">Open link ↗</span></div>
+        </a>
+        <div class="meta">
+          <p>Let's see how good Beter Saad or should I say FallenAngle348 is at Valorant.</p>
+        </div>
+      </article>
+
+      <!-- ===================== TEMPLATE (copy/paste to add more) ===================== -->
+      <!--
+      <article class="card" id="your-unique-id" data-title="Your Image Name">
+        <a class="thumb" href="https://your-link-here.com" target="_blank" rel="noopener" aria-label="Open link for Your Image Name">
+          <img src="beter.jpg" alt="Your Image Name" loading="lazy" />
+          <div class="overlay"><span class="chip">Open link ↗</span></div>
+        </a>
+        <div class="meta">
+          <h3>Your Image Name</h3>
+          <p>Optional description for this image.</p>
+        </div>
+      </article>
+      -->
+      <!-- End TEMPLATE -->
+
+    </section>
+  </main>
+
+  <button class="to-top" title="Back to top" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">↑ Top</button>
+
+  <script>
+    // On-scroll reveal
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) e.target.classList.add('in-view');
+      }
+    }, { threshold: 0.2 });
+
+    document.querySelectorAll('.card').forEach(el => io.observe(el));
+
+    // Build the jump menu from each card's title
+    const toc = document.querySelector('.toc');
+    const cards = Array.from(document.querySelectorAll('.card'));
+    cards.forEach(card => {
+      const id = card.id || Math.random().toString(36).slice(2, 8);
+      if (!card.id) card.id = id;
+      const label = card.dataset.title || card.querySelector('h3')?.textContent?.trim() || id;
+      const a = document.createElement('a');
+      a.href = `#${id}`;
+      a.textContent = label;
+      toc.appendChild(a);
+    });
+
+    // Smooth anchor scrolling (better keyboard/OS support)
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href^="#"]');
+      if (!a) return;
+      const el = document.querySelector(a.getAttribute('href'));
+      if (el) {
+        e.preventDefault();
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', a.getAttribute('href'));
+      }
+    });
+  </script>
+</body>
+</html>
